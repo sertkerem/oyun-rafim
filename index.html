@@ -318,7 +318,7 @@ async function enrich(g0,pickId){
     await store.save(g);
     toast("“"+g.title+"” bilgileri ve kapağı geldi.");
   }catch(e){
-    toast(e&&(e.status===401||e.status===403)?"RAWG anahtarı kabul edilmedi. Özet ekranından anahtarı kontrol et.":e&&e.code==="quota_exceeded"?"Telefonda yer kalmadı; kaydedilemedi.":"İnternete ulaşılamadı. Oyunun sayfasından tekrar dene.");
+    toast(e&&e.code==="quota_exceeded"?"Telefonda yer kalmadı; kaydedilemedi.":navigator.onLine===false?"İnternet bağlantısı yok. Bağlanınca oyunun sayfasından tekrar dene.":"RAWG yanıt vermedi; büyük olasılıkla anahtarı tanımıyor. Özet ekranından anahtarı yeniden gir.");
   }finally{delete enriching[g0.id];render();if(openId===g0.id&&byId(g0.id))detail(g0.id)}
 }
 async function pickSheet(query){
@@ -331,7 +331,7 @@ async function pickSheet(query){
   try{
     var s=await api("games",{search:query,page_size:8});var box=document.getElementById("picks");if(!box) return;
     box.innerHTML=(s.results||[]).map(function(r){return '<button data-act="choose" data-rid="'+esc(r.id)+'">'+(r.background_image?'<img src="'+esc(rimg(r.background_image,200))+'" alt="" loading="lazy">':'<img alt="">')+'<span>'+esc(r.name)+'<small>'+esc(r.released?String(r.released).slice(0,4):"tarih yok")+" · "+esc((r.platforms||[]).map(function(p){return p.platform&&p.platform.name}).filter(Boolean).slice(0,4).join(", "))+'</small></span></button>'}).join("")||'<p class="sum">Sonuç yok. Adı değiştirip tekrar ara.</p>';
-  }catch(e){var b=document.getElementById("picks");if(b)b.innerHTML='<p class="sum">Arama yapılamadı. Bağlantını ve RAWG anahtarını kontrol et.</p>'}
+  }catch(e){var b=document.getElementById("picks");if(b)b.innerHTML='<p class="sum">Arama yapılamadı; RAWG büyük olasılıkla anahtarı tanımıyor. Özet ekranından anahtarı yeniden gir.</p>'}
 }
 function keySheet(){
   showSheet('<div class="shead"><h3>RAWG anahtarı</h3><button class="x" data-act="close" aria-label="Kapat">✕</button></div>'+
@@ -343,7 +343,11 @@ function keySheet(){
 async function keySave(){
   var k=val("keyin");if(!k){toast("Anahtarı yapıştır.");return}
   var old=KEY;KEY=k;
-  try{await api("games",{page_size:1})}catch(e){if(e&&(e.status===401||e.status===403)){KEY=old;toast("Bu anahtar kabul edilmedi. Kopyalarken eksik kalmış olabilir.");return}}
+  try{await api("games",{page_size:1})}catch(e){
+    KEY=old;
+    toast(navigator.onLine===false?"İnternet bağlantısı yok; anahtar denenemedi.":"RAWG bu anahtarı tanımadı. RAWG hesabındaki API key\'i baştan kopyalayıp tekrar dene.");
+    return;
+  }
   try{localStorage.setItem("raf.key",k)}catch(e){}
   closeSheet();render();toast("Anahtar kaydedildi.");
   var todo=state.games.filter(function(g){return !g.info});
