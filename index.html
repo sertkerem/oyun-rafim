@@ -298,6 +298,23 @@ function coverColor(url){
   });
 }
 function cleanQuery(t){return String(t).replace(/\b(nintendo|switch|playstation|ps[1-5]|xbox|series|one|pc|remake|remastered|edition)\b/gi," ").replace(/\s[1-5]\s*$/," ").replace(/\s+/g," ").trim()}
+function toks(t){return String(t).toLowerCase().replace(/['’`]/g,"").replace(/[^a-z0-9ğüşıöç]+/g," ").trim().split(" ").filter(Boolean)}
+function lev(a,b){var m=a.length,n=b.length,d=[],i,j;for(i=0;i<=m;i++){d[i]=[i]}for(j=0;j<=n;j++){d[0][j]=j}for(i=1;i<=m;i++){for(j=1;j<=n;j++){d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1))}}return d[m][n]}
+function closeness(query,name){
+  var q=toks(cleanQuery(query)||query),n=toks(name);if(!q.length||!n.length) return 0;
+  var hit=0;q.forEach(function(w){if(n.some(function(x){return x===w||(w.length>=4&&lev(x,w)<=(w.length>=6?2:1))}))hit++});
+  return hit/q.length;
+}
+function bestMatch(results,title,platform){
+  var pn=plat(platform).name.toLowerCase(),best=null;
+  (results||[]).forEach(function(r,i){
+    var sc=closeness(title,r.name);
+    var onPlat=(r.platforms||[]).some(function(p){var x=String(p.platform&&p.platform.name||"").toLowerCase();return x&&(x===pn||pn.indexOf(x)===0||x.indexOf(pn)===0)});
+    var rank=sc*100+(onPlat?5:0)-i*0.1;
+    if(sc>=0.6&&(!best||rank>best.rank)) best={id:r.id,rank:rank};
+  });
+  return best?best.id:null;
+}
 var enriching={};
 async function enrich(g0,pickId){
   if(!KEY){keySheet();return}
@@ -308,8 +325,11 @@ async function enrich(g0,pickId){
     if(!id){
       var s=await api("games",{search:g0.title,page_size:5});
       if(!s.results||!s.results.length){var q=cleanQuery(g0.title);if(q&&q!==g0.title)s=await api("games",{search:q,page_size:5})}
-      if(!s.results||!s.results.length){toast("“"+g0.title+"” bulunamadı. Adını kontrol et.");return}
-      id=s.results[0].id;
+      id=bestMatch(s.results,g0.title,g0.platform);
+      if(!id){
+        var ng=JSON.parse(JSON.stringify(byId(g0.id)||g0));ng.info="none";await store.save(ng);
+        toast("“"+g0.title+"” RAWG\'de yok. Adını yazdığın gibi bıraktım; bilgileri Düzenle\'den girebilirsin.");return;
+      }
     }
     var d=await api("games/"+id);
     var g=JSON.parse(JSON.stringify(byId(g0.id)||g0));
@@ -326,7 +346,7 @@ async function pickSheet(query){
   if(!KEY){keySheet();return}
   query=query||g.title;
   showSheet('<div class="shead"><h3>Doğru oyunu seç</h3><button class="x" data-act="close" aria-label="Kapat">✕</button></div>'+
-    '<div class="f w"><label for="pq">Oyun adı</label><input id="pq" value="'+esc(query)+'"></div><div class="acts"><button class="prim" data-act="pick-search">Ara</button></div><div class="pick" id="picks"><p class="sum">Aranıyor…</p></div>');
+    '<div class="f w"><label for="pq">Oyun adı</label><input id="pq" value="'+esc(query)+'"></div><div class="acts"><button class="prim" data-act="pick-search">Ara</button><button class="ghost" data-act="unlink">Listede yok, bu adla bırak</button></div><div class="pick" id="picks"><p class="sum">Aranıyor…</p></div>');
   openId=gid;
   try{
     var s=await api("games",{search:query,page_size:8});var box=document.getElementById("picks");if(!box) return;
@@ -458,7 +478,7 @@ function detail(id,picked){
     '<div class="shead"><h3'+(picked?"":' lang="en"')+'>'+(picked?"Bu akşamın önerisi":esc(p.name))+'</h3><button class="x" data-act="close" aria-label="Kapat">✕</button></div>'+
     '<div class="dtop">'+coverHTML(g,true)+'<div class="dmeta"><div lang="en" style="font:800 28px/1 var(--display);text-transform:uppercase;overflow-wrap:anywhere">'+esc(g.title)+'</div>'+
     '<div class="sub">'+esc(p.name)+(g.year?" · "+esc(g.year):"")+'</div>'+
-    '<div class="msrow"><span class="ms '+msClass(g.metascore)+'">'+(has?g.metascore:"–")+'</span><span>'+(enriching[g.id]?"Bilgiler getiriliyor…":has?"Metascore"+(g.info==="rawg"&&g.infoAt&&!g.msManual?". RAWG üzerinden, "+esc(g.infoAt)+" tarihinde alındı.":". Elle girildi."):g.info?"RAWG\'de bu oyunun Metascore\'u henüz yok (yeni oyunlarda sık olur). Metacritic\'ten bakıp Düzenle ile girebilirsin.":"Bilgiler henüz getirilmedi.")+'</span></div>'+
+    '<div class="msrow"><span class="ms '+msClass(g.metascore)+'">'+(has?g.metascore:"–")+'</span><span>'+(enriching[g.id]?"Bilgiler getiriliyor…":has?"Metascore"+(g.info==="rawg"&&g.infoAt&&!g.msManual?". RAWG üzerinden, "+esc(g.infoAt)+" tarihinde alındı.":". Elle girildi."):g.info==="none"?"RAWG\'de bu oyun yok (yeni oyunlarda olur). Bilgileri Düzenle ile elle girebilirsin.":g.info?"RAWG\'de bu oyunun Metascore\'u henüz yok (yeni oyunlarda sık olur). Metacritic\'ten bakıp Düzenle ile girebilirsin.":"Bilgiler henüz getirilmedi.")+'</span></div>'+
     '<div class="tags">'+tags+'</div></div></div>'+
     (g.summary?'<p class="sum">'+esc(g.summary)+'</p>':"")+
     '<div class="seg stseg" role="group" aria-label="Durum">'+seg+'</div>'+
@@ -606,6 +626,10 @@ document.addEventListener("click",function(ev){
   else if(a==="pick") pickSheet();
   else if(a==="pick-search") pickSheet(val("pq"));
   else if(a==="choose"){var cg=byId(openId);if(cg){var rid=el.dataset.rid;detail(cg.id);enrich(cg,rid)}}
+  else if(a==="unlink"){var ug=byId(openId);if(ug){var c2=JSON.parse(JSON.stringify(ug));var nt=val("pq");if(nt)c2.title=nt;
+      ["rawgId","slug","cover","bg","ink","infoAt"].forEach(function(k){delete c2[k]});
+      if(ug.info==="rawg"){c2.year=null;c2.developer="";c2.publisher="";c2.genres=[];c2.summary="";if(!c2.msManual)c2.metascore=null}
+      c2.info="none";var uid=c2.id;store.save(c2).then(function(){detail(uid);toast("Adı yazdığın gibi bıraktım. Bilgileri Düzenle\'den girebilirsin.")})}}
   else if(a==="key") keySheet();
   else if(a==="key-save") keySave();
   else if(a==="status"){var g=byId(openId);if(g){var c=JSON.parse(JSON.stringify(g));c.status=el.dataset.s;var id=openId;store.save(c).then(function(){var i=state.games.findIndex(function(x){return x.id===id});if(i>=0)state.games[i]=c;if(openId===id)detail(id)}).catch(function(){toast("Durum kaydedilemedi.")})}}
