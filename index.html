@@ -271,7 +271,7 @@ function applyRawg(g,d){
   g.year=d.released?parseInt(String(d.released).slice(0,4),10):null;
   var ms=typeof d.metacritic==="number"?d.metacritic:null,pn=plat(g.platform).name.toLowerCase();
   (d.metacritic_platforms||[]).forEach(function(m){var n=m&&m.platform&&String(m.platform.name||"").toLowerCase();if(n&&typeof m.metascore==="number"&&(n===pn||n.replace("s/x","x|s")===pn))ms=m.metascore});
-  g.metascore=ms;
+  if(ms!==null){g.metascore=ms;g.msManual=false}else if(typeof g.metascore!=="number"){g.metascore=null}
   g.developer=names(d.developers);g.publisher=names(d.publishers);
   g.genres=(d.genres||[]).slice(0,3).map(function(x){return GENRE[x.name]||x.name});
   var t=String(d.description_raw||"").replace(/\s+/g," ").trim();
@@ -458,7 +458,7 @@ function detail(id,picked){
     '<div class="shead"><h3>'+(picked?"Bu akşamın önerisi":esc(p.name))+'</h3><button class="x" data-act="close" aria-label="Kapat">✕</button></div>'+
     '<div class="dtop">'+coverHTML(g,true)+'<div class="dmeta"><div style="font:800 28px/1 var(--display);text-transform:uppercase;overflow-wrap:anywhere">'+esc(g.title)+'</div>'+
     '<div class="sub">'+esc(p.name)+(g.year?" · "+esc(g.year):"")+'</div>'+
-    '<div class="msrow"><span class="ms '+msClass(g.metascore)+'">'+(has?g.metascore:"–")+'</span><span>'+(enriching[g.id]?"Bilgiler getiriliyor…":has?"Metascore"+(g.info==="rawg"&&g.infoAt?". RAWG üzerinden, "+esc(g.infoAt)+" tarihinde alındı.":". Elle girildi."):g.info?"Bu oyunun Metascore\'u yok.":"Bilgiler henüz getirilmedi.")+'</span></div>'+
+    '<div class="msrow"><span class="ms '+msClass(g.metascore)+'">'+(has?g.metascore:"–")+'</span><span>'+(enriching[g.id]?"Bilgiler getiriliyor…":has?"Metascore"+(g.info==="rawg"&&g.infoAt&&!g.msManual?". RAWG üzerinden, "+esc(g.infoAt)+" tarihinde alındı.":". Elle girildi."):g.info?"RAWG\'de bu oyunun Metascore\'u henüz yok (yeni oyunlarda sık olur). Metacritic\'ten bakıp Düzenle ile girebilirsin.":"Bilgiler henüz getirilmedi.")+'</span></div>'+
     '<div class="tags">'+tags+'</div></div></div>'+
     (g.summary?'<p class="sum">'+esc(g.summary)+'</p>':"")+
     '<div class="seg stseg" role="group" aria-label="Durum">'+seg+'</div>'+
@@ -542,7 +542,7 @@ async function saveForm(){
     g.developer=val("f-dev");g.publisher=val("f-pub");g.summary=val("f-summary");g.notes=val("f-notes");
     g.genres=val("f-genres").split(",").map(function(s){return s.trim()}).filter(Boolean).slice(0,5);
     g.bg=val("f-bg");g.ink=val("f-ink");
-    if(old&&old.metascore!==g.metascore){delete g.infoAt}
+    if(old&&old.metascore!==g.metascore){g.msManual=true}
   } else if(pending){g.bg=pending.bg;g.ink=pending.ink}
   var btn=$("#btn-save");btn.disabled=true;btn.textContent="Kaydediliyor…";
   if(pending){
