@@ -233,7 +233,7 @@ var PRESETS=[
 function plat(name){
   var n=String(name||"").trim().toLowerCase();
   for(var i=0;i<PRESETS.length;i++){ if(PRESETS[i][0].toLowerCase()===n||PRESETS[i][1].toLowerCase()===n) return {name:PRESETS[i][0],abbr:PRESETS[i][1],fam:PRESETS[i][2],size:PRESETS[i][3],order:i}; }
-  var ab=String(name||"?").replace(/[^A-Za-z0-9ÇĞİÖŞÜçğıöşü]/g,"").slice(0,4).toLocaleUpperCase("tr");
+  var ab=String(name||"?").replace(/[^A-Za-z0-9ÇĞİÖŞÜçğıöşü]/g,"").slice(0,4).toUpperCase();
   return {name:String(name||"Diğer").trim()||"Diğer",abbr:ab||"?",fam:"ot",size:"bd",order:999};
 }
 var STATUS={backlog:"Sırada",playing:"Oynuyorum",done:"Bitirdim",dropped:"Bıraktım"};
@@ -383,13 +383,13 @@ function spineHTML(g){
   var p=plat(g.platform),c=colors(g),sz=SIZES[p.size],t=String(g.title||"");
   var cls=t.length>24?"l":t.length>14?"m":"";
   return '<div class="slot"><button class="spine fam-'+p.fam+(g.format==="digital"?" dig":"")+(g.loan?" loan":"")+(enriching[g.id]?" busy":"")+'" data-act="open" data-id="'+esc(g.id)+'" style="--bg:'+c.bg+';--ink:'+c.ink+';--w:'+sz[0]+'px;--h:'+sz[1]+'px" aria-label="'+esc(t)+'">'+
-    '<span class="cap">'+esc(p.abbr)+'</span><span class="ttl '+cls+'">'+esc(t)+'</span><span class="pip '+esc(g.status||"")+'"></span></button></div>';
+    '<span class="cap">'+esc(p.abbr)+'</span><span class="ttl '+cls+'" lang="en">'+esc(t)+'</span><span class="pip '+esc(g.status||"")+'"></span></button></div>';
 }
 function coverHTML(g,big){
   var p=plat(g.platform),c=colors(g);
   var src=g.thumb||rimg(g.cover,big?640:420);
   var inner=src?'<img src="'+esc(src)+'" alt="'+esc(g.title)+' görseli" loading="lazy"'+(!g.thumb&&g.cover?' data-fb="'+esc(g.cover)+'"':'')+'>'
-    :'<span class="cap">'+esc(p.abbr)+'</span><span class="gen">'+esc(g.title)+'</span>';
+    :'<span class="cap">'+esc(p.abbr)+'</span><span class="gen" lang="en">'+esc(g.title)+'</span>';
   return '<div class="cover fam-'+p.fam+'" style="--bg:'+c.bg+';--ink:'+c.ink+'">'+inner+'</div>';
 }
 function cardHTML(g){
@@ -425,7 +425,7 @@ function render(){
     groups.sort(function(a,b){if(a.key==="\u0000wish")return 1;if(b.key==="\u0000wish")return -1;return plat(a.key).order-plat(b.key).order||a.key.localeCompare(b.key,"tr")});
     groups.forEach(function(gr){
       var title=gr.key==="\u0000wish"?"İstek listesi":gr.key;
-      html+='<section class="sec"><h2>'+esc(title)+' <span>'+gr.items.length+' oyun</span></h2>'+
+      html+='<section class="sec"><h2'+(gr.key==="\u0000wish"?"":' lang="en"')+'>'+esc(title)+' <span lang="tr">'+gr.items.length+' oyun</span></h2>'+
         (state.view==="grid"?'<div class="grid">'+gr.items.map(cardHTML).join("")+'</div>':'<div class="shelf">'+gr.items.map(spineHTML).join("")+'</div>')+'</section>';
     });
   }
@@ -455,8 +455,8 @@ function detail(id,picked){
   row("Eklendi",g.added?new Date(g.added).toLocaleDateString("tr-TR"):"");
   var seg=Object.keys(STATUS).map(function(k){return '<button data-act="status" data-s="'+k+'" aria-pressed="'+((g.status||"backlog")===k)+'">'+STATUS[k]+'</button>'}).join("");
   showSheet(
-    '<div class="shead"><h3>'+(picked?"Bu akşamın önerisi":esc(p.name))+'</h3><button class="x" data-act="close" aria-label="Kapat">✕</button></div>'+
-    '<div class="dtop">'+coverHTML(g,true)+'<div class="dmeta"><div style="font:800 28px/1 var(--display);text-transform:uppercase;overflow-wrap:anywhere">'+esc(g.title)+'</div>'+
+    '<div class="shead"><h3'+(picked?"":' lang="en"')+'>'+(picked?"Bu akşamın önerisi":esc(p.name))+'</h3><button class="x" data-act="close" aria-label="Kapat">✕</button></div>'+
+    '<div class="dtop">'+coverHTML(g,true)+'<div class="dmeta"><div lang="en" style="font:800 28px/1 var(--display);text-transform:uppercase;overflow-wrap:anywhere">'+esc(g.title)+'</div>'+
     '<div class="sub">'+esc(p.name)+(g.year?" · "+esc(g.year):"")+'</div>'+
     '<div class="msrow"><span class="ms '+msClass(g.metascore)+'">'+(has?g.metascore:"–")+'</span><span>'+(enriching[g.id]?"Bilgiler getiriliyor…":has?"Metascore"+(g.info==="rawg"&&g.infoAt&&!g.msManual?". RAWG üzerinden, "+esc(g.infoAt)+" tarihinde alındı.":". Elle girildi."):g.info?"RAWG\'de bu oyunun Metascore\'u henüz yok (yeni oyunlarda sık olur). Metacritic\'ten bakıp Düzenle ile girebilirsin.":"Bilgiler henüz getirilmedi.")+'</span></div>'+
     '<div class="tags">'+tags+'</div></div></div>'+
